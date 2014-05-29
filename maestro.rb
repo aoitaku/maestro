@@ -1,7 +1,120 @@
 #!ruby
+require 'delegate'
 require_relative 'recipe'
 require_relative 'item'
 require 'dxruby'
+
+def ingredients(a, b)
+  [Ingredient.new(a), Ingredient.new(b)]
+end
+
+def recipe(product, ingredients)
+  Recipe.new(product, ingredients)
+end
+
+class Medium < Sprite
+  attr_reader :item
+  def initialize(x, y, item)
+    @item = item
+    super(x, y, @item.icon)
+  end
+  def id
+    @item.id
+  end
+  def self.pop(item)
+    self.new(
+      rand(Window.width-48)+24,
+      rand(Window.height-48)+24,
+      item
+    )
+  end
+end
+
+class Media < DelegateClass(Array)
+  def initialize
+    @_ = []
+    super(@_)
+  end
+  def to_a
+    @_
+  end
+  alias add push
+  def renew(old, new)
+    delete(old)
+    push(new)
+  end
+  def update
+    Sprite.update(@_)
+  end
+  def draw
+    Sprite.draw(@_)
+  end
+end
+
+class Alchemy
+  def initialize(recipes, item_db)
+    @recipes = recipes
+    @item_db = item_db
+  end
+  def ingredient(material, amount=1)
+    Ingredient.new(material.id, amount)
+  end
+  def find(a, b)
+    (found = @recipes.find(ingredient(a), ingredient(b))) and @item_db[found]
+  end
+  def synthesize(a, b)
+    Medium.new((a.x+b.x)/2, (a.y+b.y)/2, find(a, b))
+  end
+end
+
+class Hand < Sprite
+  attr_reader :grabbing
+  def initialize
+    self.x = 0
+    self.y = 0
+    self.collision = [0, 0]
+    @grabbing = nil
+  end
+  def input_update
+    self.x = Input.mouse_pos_x
+    self.y = Input.mouse_pos_y
+  end
+  def update
+    if Input.mouse_down?(M_LBUTTON)
+      if grabbing?
+        grabbing.x = self.x
+        grabbing.y = self.y
+      end
+    end
+    grabbing.update if grabbing?
+  end
+  def hit?(media)
+    self.check(media.to_a).last.tap {|hit|
+      if hit
+        Input.set_cursor(IDC_HAND)
+      else
+        Input.set_cursor(IDC_ARROW) unless grabbing?
+      end
+    }
+  end
+  def grab(medium)
+    @grabbing = medium
+    grabbing.z = 100
+  end
+  def grab?(media)
+    Input.mouse_push?(M_LBUTTON) and hit?(media)
+  end
+  def release
+    grabbing.z = 0
+    grabbing.tap { @grabbing = nil }
+  end
+  def release?
+    Input.mouse_release?(M_LBUTTON) and grabbing?
+  end
+  def grabbing?
+    grabbing != nil
+  end
+end
 
 icons = Image.load_tiles('gfx/icons.png', 388 / 24, 168 / 24)
 item_db = ItemDB.new(Hash[*(%w(
@@ -106,80 +219,31 @@ item_db = ItemDB.new(Hash[*(%w(
   name, score = data.split(':')
   [i+1, ItemData.new(name, score, icons[i])]
 }).flatten])
-ingredient = -> material, amount=1 { Ingredient.new(material, amount) }
-recipes = Recipes.new(
-  [
-    [9, [ingredient[1], ingredient[4]]]
-  ].map {|product, ingredients|
-    Recipe.new(product, ingredients)
-  }
-)
-class Media < Sprite
-  attr_reader :item
-  def initialize(x, y, item)
-    @item = item
-    super(x, y, @item.icon)
-  end
-end
-media = []
 
-[1, 4, 7, 10].each {|n|
-  media.push Media.new(
-    rand(Window.width-48)+24,
-    rand(Window.height-48)+24,
-    item_db[n]
-  )
-}
-mouse = Sprite.new(0, 0)
-mouse.collision = [0, 0]
+recipes = Recipes.new([
+ [9, ingredients(1,4)]
+].map {|product, ingredients| recipe(product, ingredients)})
+
+alchemy = Alchemy.new(recipes, item_db)
+media = Media.new
+[1, 4, 7, 10].each {|n| media.add(Medium.pop(item_db[n])) }
+
+hand = Hand.new
 grab = nil
 Window.loop do
-  mouse.x, mouse.y = Input.mouse_pos_x, Input.mouse_pos_y
-  hit = mouse.check(media)
-  if hit.empty?
-    unless grab
-      Input.set_cursor IDC_ARROW
-    end
-  else
-    Input.set_cursor IDC_HAND
-  end
-  if Input.mouse_push?(M_LBUTTON)
-    unless hit.empty?
-      grab = hit.first
-      grab.z = 100
-      media.delete(hit.first)
-    end
-  elsif Input.mouse_down?(M_LBUTTON)
-    if grab
-      grab.x = mouse.x
-      grab.y = mouse.y
-    end
-  elsif Input.mouse_release?(M_LBUTTON)
-    if grab
-      if hit.empty?
-        grab.z = 0
-        media.push grab
-      else
-        found = recipes.find(ingredient[grab.item.id], ingredient[hit.first.item.id])
-        if found
-          media.delete(hit.first)
-          media.push(Media.new(
-            mouse.x,
-            mouse.y,
-            item_db[found]
-          ))
-        else
-          grab.z = 0
-          media.push grab
-        end
-      end
-      grab = nil
+  hand.input_update
+  hit = hand.hit?(media)
+  if hand.grab?(media)
+    hand.grab(media.delete(hit)) if hit
+  elsif hand.release?
+    if hit and alchemy.find(hand.grabbing, hit)
+      media.add(alchemy.synthesize(media.delete(hit), hand.release))
+    else
+      media.add(hand.release)
     end
   end
-  Sprite.update(media)
-  if grab
-    grab.update 
-    grab.draw
-  end
-  Sprite.draw(media)
+  hand.update
+  media.update
+  hand.grabbing.draw if hand.grabbing?
+  media.draw
 end
