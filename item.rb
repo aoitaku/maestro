@@ -28,7 +28,12 @@ class ItemDB < DelegateClass(Hash)
     super(data)
   end
   def [](index)
-    super(index) ? Item.new({index => super(index)}) : nil
+    case index
+    when Fixnum
+      super(index) ? Item.new({index => super(index)}) : nil
+    when Symbol
+      (data = select {|_, i| next true if i.name == index.to_s}) ? Item.new(data) : nil
+    end
   end
   def inspect
     "#<ItemDB:#{'0x%014x' % self.object_id} #{super}>"

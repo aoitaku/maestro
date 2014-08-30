@@ -4,12 +4,12 @@ require_relative 'recipe'
 require_relative 'item'
 require 'dxruby'
 
-def ingredients(a, b)
-  [Ingredient.new(a), Ingredient.new(b)]
+def ingredients(item_db)
+  -> a, b {[Ingredient.new(item_db[a].id), Ingredient.new(item_db[b].id)]}
 end
 
-def recipe(product, ingredients)
-  Recipe.new(product, ingredients)
+def recipe(item_db)
+  -> product, ingredients { Recipe.new(item_db[product].id, ingredients) }
 end
 
 class Medium < Sprite
@@ -221,12 +221,22 @@ item_db = ItemDB.new(Hash[*(%w(
 }).flatten])
 
 recipes = Recipes.new([
- [9, ingredients(1,4)]
-].map {|product, ingredients| recipe(product, ingredients)})
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+].map {|product, ingredients| recipe(item_db)[product, ingredients]})
 
 alchemy = Alchemy.new(recipes, item_db)
 media = Media.new
-[1, 4, 7, 10].each {|n| media.add(Medium.pop(item_db[n])) }
+[:stone, :iron_ore, :tree].each {|n| media.add(Medium.pop(item_db[n])) }
 
 hand = Hand.new
 grab = nil
