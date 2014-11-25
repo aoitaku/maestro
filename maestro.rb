@@ -221,17 +221,8 @@ item_db = ItemDB.new(Hash[*(%w(
 }).flatten])
 
 recipes = Recipes.new([
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
-  [:fire, ingredients(item_db)[:stone, :iron_ore]]
+  [:fire, ingredients(item_db)[:stone, :iron_ore]],
+  [:coal, ingredients(item_db)[:fire, :tree]]
 ].map {|product, ingredients| recipe(item_db)[product, ingredients]})
 
 alchemy = Alchemy.new(recipes, item_db)
