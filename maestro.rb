@@ -99,6 +99,7 @@ class Hand < Sprite
   end
   def grab(medium)
     @grabbing = medium
+    self.collision = [0, 0, 32, 32]
     grabbing.z = 100
   end
   def grab?(media)
@@ -106,6 +107,7 @@ class Hand < Sprite
   end
   def release
     grabbing.z = 0
+    self.collision = [0, 0]
     grabbing.tap { @grabbing = nil }
   end
   def release?
